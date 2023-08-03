@@ -1,4 +1,4 @@
-//! # decription
+//! # Decription
 //! A crate that provides some simple and maybe stupid or useful tools
 //!
 //! # Example
@@ -70,6 +70,9 @@ pub mod short_unwrap {
     /// assert_eq!(a.unwrap(), b.u());
     /// ```
     pub trait ShortUnwrap<T> {
+        /// equals to [`unwrap`]
+        ///
+        /// see also [`ShortUnwrap`][`crate::short_unwrap::ShortUnwrap`]
         fn u(self) -> T;
     }
 
@@ -113,6 +116,9 @@ pub mod option_to_result {
     ///
     /// ```
     pub trait OptionToResult<T> {
+        /// convert `Option` to `Result`
+        ///
+        /// see also trait doc [`OptionToResult`][`crate::option_to_result::OptionToResult`]
         fn to_result(self) -> Result<T, OptionUnwrapOnNoneError>;
     }
 
@@ -155,6 +161,9 @@ pub mod mutex_lock_and_unwrap {
     where
         T: ?Sized,
     {
+        /// `lock` and `unwrap`
+        ///
+        /// see also [`MutexLockAndUnwrap`][`crate::mutex_lock_and_unwrap::MutexLockAndUnwrap`]
         fn lock_and_unwrap(&self) -> std::sync::MutexGuard<'_, T>;
     }
 
@@ -208,6 +217,9 @@ pub mod select {
     /// assert_eq!(false.select(2, 3), 3);
     /// ```
     pub trait DotSelect<T> {
+        /// same as `cond? a : b` operator in c/cpp, but as a method of `bool`
+        ///
+        /// see also [`DotSelect`][`crate::select::DotSelect`]
         fn select(&self, true_value: T, false_value: T) -> T;
     }
     impl<T> DotSelect<T> for bool {
@@ -234,6 +246,9 @@ pub mod dot_drop {
     /// // &a;
     /// ```
     pub trait DotDrop: Sized {
+        /// `drop` function as a method
+        ///
+        /// see also [`DotDrop`]
         #[inline(always)]
         fn drop(self) {
             drop(self)
@@ -257,6 +272,9 @@ pub mod result_to_option {
     ///
     /// ```
     pub trait ResultToOption<T> {
+        /// convert a `Result` to an `Option`
+        ///
+        /// see also [`ResultToOption`]
         fn to_option(self) -> Option<T>;
     }
     impl<T, E> ResultToOption<T> for Result<T, E> {
@@ -409,6 +427,9 @@ pub mod find_in_vec {
     ///
     /// ```
     pub trait FindInVec<T> {
+        /// a `find` method for `Vec` returning the first matched index
+        ///
+        /// see also [`FindInVec`]
         fn find(&self, value: &T) -> Option<usize>;
     }
 
@@ -445,6 +466,9 @@ pub mod map_value {
     where
         F: FnOnce(Self) -> U,
     {
+        /// a `map` method for every value
+        ///
+        /// see also [`MapValue`]
         fn map_value(self, op: F) -> U {
             op(self)
         }
@@ -475,6 +499,9 @@ pub mod box_up {
     ///
     /// ```
     pub trait BoxUp {
+        /// a method equals to `Box::new`
+        ///
+        /// see also [`BoxUp`]
         fn box_up(self) -> Box<Self>;
     }
     impl<T> BoxUp for T {
@@ -486,7 +513,8 @@ pub mod box_up {
 
 pub mod dot_debug {
     use std::fmt::Debug;
-
+    /// a debug method
+    /// a little stupid (because this will print "Self=", and will show a wrong line)
     pub trait DotDebug {
         fn dot_debug(self) -> Self;
         fn dot_debug_with_info(self, info: &str) -> Self;
@@ -527,6 +555,9 @@ pub mod mutable_init {
     /// assert_eq!(a, b);
     ///
     pub trait MutableInit {
+        /// a method takes an owned value, changes it in a closure, then return it;
+        ///
+        /// see also [`MutableInit`]
         fn mutable_init<F>(self, f: F) -> Self
         where
             F: FnOnce(&mut Self);
@@ -731,7 +762,7 @@ pub mod stack_struct {
 
     pub use self::pop_first::PopFirst;
     pub use self::push_first::PushFirst;
-    /// just for fun
+    /// just for fun (also is interesting)
     pub struct Stack<T1, T2> {
         v1: T1,
         v2: T2,
@@ -744,7 +775,7 @@ pub mod stack_struct {
                 .finish()
         }
     }
-
+    /// just for fun
     pub struct Value<T>(T);
     impl<T: Debug> Debug for Value<T> {
         fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

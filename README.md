@@ -1,4 +1,4 @@
-# Description
+## Description
 
 A crate that provides some simple and maybe stupid or useful tools
 
