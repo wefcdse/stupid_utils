@@ -2,7 +2,10 @@
 name = "stupid_utils"
 version = "0.1.0"
 edition = "2021"
-
+authors = ["wefcdse"]
+description = "A crate that provides some simple and maybe stupid or useful tools"
+repository = "https://github.com/wefcdse/stupid_utils"
+readme = "README.md"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
