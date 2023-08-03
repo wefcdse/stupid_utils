@@ -56,7 +56,7 @@ pub mod predule {
     pub use crate::result_to_option::ResultToOption;
     pub use crate::select::{select, DotSelect};
     pub use crate::short_unwrap::ShortUnwrap;
-    pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
+    // pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
 }
 pub mod short_unwrap {
 
