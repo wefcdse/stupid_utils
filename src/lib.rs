@@ -48,14 +48,16 @@ pub mod predule {
     pub use crate::box_up::BoxUp;
     pub use crate::defer::Defer;
     pub use crate::dot_drop::DotDrop;
+    pub use crate::extend_map_iter::{ExtendMap, ExtendMapIter, PushOnlyVec};
     pub use crate::find_in_vec::FindInVec;
     pub use crate::map_value::MapValue;
     pub use crate::mutable_init::MutableInit;
     pub use crate::mutex_lock_and_unwrap::MutexLockAndUnwrap;
     pub use crate::option_to_result::{OptionToResult, OptionUnwrapOnNoneError};
+    pub use crate::print_on_drop::{PrintOnDrop, PrintOnDropNoInfo};
     pub use crate::result_to_option::ResultToOption;
     pub use crate::select::{select, DotSelect};
-    pub use crate::short_unwrap::ShortUnwrap;
+    // pub use crate::short_unwrap::ShortUnwrap;
     // pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
 }
 pub mod short_unwrap {
@@ -700,6 +702,7 @@ mod fake_truple {
     }
 
     use crate::predule::*;
+    use crate::short_unwrap::ShortUnwrap;
     fn dead_lock() {
         let lock1 = arc_mutex_new(1);
         let lock2 = arc_mutex_new(2);
@@ -993,5 +996,340 @@ pub mod stack_struct {
             .push(9);
         dbg!(s.depth());
         dbg!(s);
+    }
+}
+
+pub mod print_on_drop {
+    /// a struct that will print some infomation when drop
+    /// the info can be set when creating a new struct
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct PrintOnDrop {
+        info: String,
+    }
+
+    /// a struct that will print some infomation when drop
+    /// the info is fixed `droped a PrintOnDropNoInfo`
+    /// the struct is zero-sized
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    pub struct PrintOnDropNoInfo;
+    impl PrintOnDrop {
+        pub fn new(info: &str) -> Self {
+            Self {
+                info: info.to_owned(),
+            }
+        }
+    }
+    impl Drop for PrintOnDrop {
+        fn drop(&mut self) {
+            println!("{}", self.info);
+        }
+    }
+
+    impl Drop for PrintOnDropNoInfo {
+        fn drop(&mut self) {
+            println!("droped a PrintOnDropNoInfo")
+        }
+    }
+
+    #[test]
+    fn test() {
+        use std::mem::MaybeUninit;
+        let _a = PrintOnDrop::new("1");
+        let _a = PrintOnDrop::new("2");
+        let _a: PrintOnDrop = PrintOnDrop::new("3");
+        #[allow(invalid_value)]
+        let _a: PrintOnDropNoInfo = unsafe { MaybeUninit::uninit().assume_init() };
+        println!("here");
+    }
+}
+
+pub mod one_or_many {
+    use std::fmt::Debug;
+    /// a struct that can contain one or many value,
+    ///
+    /// note than [`OneOrMany::Many`] does not guarantee the vec really contains 2+ values, it many be empty or only contains a single value
+    ///
+    /// why use this instead of [`Vec<T>`]:
+    /// [`Vec<T>`] will always allocate memory on heap, even if the vec only contains a single value
+    ///
+    /// why use [`Vec<T>`] instead of this:
+    /// [`Vec<T>`]'s size is basically fixed 24bit, but this struct's size is expected to be bigger than `T`
+    ///
+    #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+    pub enum OneOrMany<T> {
+        One(T),
+        Many(Vec<T>),
+    }
+
+    impl<T> OneOrMany<T> {
+        pub fn from_one(value: T) -> Self {
+            OneOrMany::One(value)
+        }
+        pub fn from_vec(mut value: Vec<T>) -> Option<Self> {
+            if value.len() > 1 {
+                Some(OneOrMany::Many(value))
+            } else {
+                Some(OneOrMany::One(value.pop()?))
+            }
+        }
+        pub fn push(&mut self, value: T) {
+            // this function will never panic
+            // it does not call any of T's methods including destructor
+
+            // now self is uninit, dropping it is ub
+            // old_value is a valid value
+            let old_value = unsafe {
+                std::ptr::read(self)
+                // std::mem::replace(self, MaybeUninit::uninit().assume_init())
+            };
+
+            // constructing a new OneOrMany from old_value, no value is dropped
+            let value_1 = match old_value {
+                OneOrMany::One(value0) => vec![value0, value],
+                OneOrMany::Many(mut vec0) => {
+                    vec0.push(value);
+                    vec0
+                }
+            };
+            let mut new_value = OneOrMany::Many(value_1);
+
+            // now new_value is uninit, it should not be dropped
+            std::mem::swap(&mut new_value, self);
+
+            // move new_value without calling the destructor
+            std::mem::forget(new_value);
+
+            // new_value is moved, so this line will not compile
+            // &new_value;
+        }
+        pub fn is_many(&self) -> bool {
+            match self {
+                OneOrMany::One(_) => false,
+                OneOrMany::Many(vec) => vec.len() > 1,
+            }
+        }
+        pub fn is_one(&self) -> bool {
+            match self {
+                OneOrMany::One(_) => true,
+                OneOrMany::Many(vec) => vec.len() == 1,
+            }
+        }
+        pub fn is_zero(&self) -> bool {
+            match self {
+                OneOrMany::One(_) => false,
+                OneOrMany::Many(vec) => vec.is_empty(),
+            }
+        }
+        pub fn pop(&mut self) -> Option<T> {
+            let vec = match self {
+                OneOrMany::One(_) => return None,
+                OneOrMany::Many(v) => v,
+            };
+            match vec.len() {
+                0 => None,
+                1 => {
+                    let v = vec.pop()?;
+                    *self = OneOrMany::One(v);
+                    None
+                }
+                2 => {
+                    let v2 = vec.pop()?;
+                    let v1 = vec.pop()?;
+                    *self = OneOrMany::One(v1);
+                    Some(v2)
+                }
+                3.. => vec.pop(),
+                _ => {
+                    unreachable!()
+                }
+            }
+        }
+        pub fn take_one(self) -> Result<T, Self> {
+            match self {
+                OneOrMany::One(v) => Ok(v),
+                OneOrMany::Many(mut vec) => {
+                    if vec.len() == 1 {
+                        if let Some(v) = vec.pop() {
+                            Ok(v)
+                        } else {
+                            unreachable!("vec with len 1 should always pop a Some(T) value")
+                        }
+                    } else {
+                        Err(OneOrMany::Many(vec))
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn test() {
+        // enum E1 {
+        //     A(String),
+        //     B(String),
+        // }
+        // impl E1 {
+        //     fn a_to_b(&mut self) {
+        //         *self = match *self {
+        //             E1::A(v) => E1::B(v),
+        //             E1::B(v) => E1::B(v),
+        //         };
+        //     }
+        // }
+
+        use crate::print_on_drop::{PrintOnDrop, PrintOnDropNoInfo};
+        let mut a = OneOrMany::One(PrintOnDropNoInfo);
+        dbg!((a.is_one(), a.is_many()));
+        a.push(PrintOnDropNoInfo);
+        dbg!((a.is_one(), a.is_many()));
+
+        let mut a1 = OneOrMany::One(PrintOnDrop::new("a"));
+        dbg!((a1.is_one(), a1.is_many()));
+        a1.push(PrintOnDrop::new("b"));
+        dbg!((a1.is_one(), a1.is_many()));
+
+        let oa1 = Some(a1.clone());
+        assert_eq!(std::mem::size_of_val(&oa1), std::mem::size_of_val(&a1));
+
+        let mut a2 = OneOrMany::from_one(2);
+        assert_eq!(a2, OneOrMany::One(2));
+
+        a2.push(3);
+        assert_eq!(a2, OneOrMany::Many(vec![2, 3]));
+
+        a2.push(4);
+        assert_eq!(a2, OneOrMany::Many(vec![2, 3, 4]));
+
+        let a2 = a2.take_one();
+        assert_eq!(a2, Err(OneOrMany::Many(vec![2, 3, 4])));
+
+        let mut a2 = a2.unwrap_err();
+        assert_eq!(a2, OneOrMany::Many(vec![2, 3, 4]));
+
+        assert_eq!(a2.pop(), Some(4));
+        assert_eq!(a2, OneOrMany::Many(vec![2, 3]));
+
+        assert_eq!(a2.pop(), Some(3));
+        assert_eq!(a2, OneOrMany::One(2));
+
+        assert_eq!(a2.pop(), None);
+        assert_eq!(a2, OneOrMany::One(2));
+
+        assert_eq!(a2.take_one(), Ok(2));
+        println!("end");
+    }
+}
+
+pub mod extend_map_iter {
+    /// similer to [Vec], but only provides [`PushOnlyVec::push`][`crate::extend_map_iter::PushOnlyVec`] method  
+    #[derive(Debug)]
+    pub struct PushOnlyVec<T> {
+        inner: Vec<T>,
+    }
+    impl<T> PushOnlyVec<T> {
+        /// push a value
+        pub fn push(&mut self, value: T) {
+            self.inner.push(value);
+        }
+        fn new() -> Self {
+            Self { inner: vec![] }
+        }
+    }
+
+    pub struct ExtendMapIter<F, T, T1, Iter>
+    where
+        F: FnMut(T, &mut PushOnlyVec<T1>),
+        Iter: Iterator<Item = T>,
+    {
+        f: F,
+        iter: Iter,
+        old_value: PushOnlyVec<T1>,
+    }
+
+    impl<F, T, T1, Iter> Iterator for ExtendMapIter<F, T, T1, Iter>
+    where
+        F: FnMut(T, &mut PushOnlyVec<T1>),
+        Iter: Iterator<Item = T>,
+    {
+        type Item = T1;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            while self.old_value.inner.is_empty() {
+                let value = self.iter.next()?;
+                (self.f)(value, &mut self.old_value);
+            }
+            self.old_value.inner.pop()
+        }
+    }
+
+    pub trait ExtendMap<F, T, T1, Iter>
+    where
+        F: FnMut(T, &mut PushOnlyVec<T1>),
+        Iter: Iterator<Item = T>,
+    {
+        /// similer to `map()`, but one value can create many value;
+        ///
+        /// `f` takes two args, first is the value produced from the iterator, second is a [PushOnlyVec] where you can push some values into
+        /// # Example
+        /// ```
+        /// use stupid_utils::predule::*;
+        /// assert_eq!(
+        ///     vec![0, 1, 2, 3]
+        ///         .into_iter()
+        ///         .extend_map(|v, out| {
+        ///             for _ in 0..v {
+        ///                 out.push(v);
+        ///             }
+        ///         })
+        ///         .collect::<Vec<_>>(),
+        ///     vec![1, 2, 2, 3, 3, 3]
+        /// )
+        /// ```
+        fn extend_map(self, f: F) -> ExtendMapIter<F, T, T1, Iter>;
+    }
+
+    impl<F, T, T1, Iter> ExtendMap<F, T, T1, Iter> for Iter
+    where
+        F: FnMut(T, &mut PushOnlyVec<T1>),
+        Iter: Iterator<Item = T>,
+    {
+        fn extend_map(self, f: F) -> ExtendMapIter<F, T, T1, Iter> {
+            ExtendMapIter {
+                f,
+                iter: self,
+                old_value: PushOnlyVec::new(),
+            }
+        }
+    }
+
+    #[test]
+    fn test() {
+        for _i in vec![0, 1, 2, 3]
+            .into_iter()
+            .extend_map(|v, out| {
+                for _ in 0..v {
+                    out.push(v);
+                }
+            })
+            .extend_map(|v, out| {
+                for _ in 0..v {
+                    out.push(v);
+                }
+            })
+        {
+            // println!("{}", i);
+        }
+
+        assert_eq!(
+            vec![0, 1, 2, 3]
+                .into_iter()
+                .extend_map(|v, out| {
+                    for _ in 0..v {
+                        out.push(v);
+                    }
+                })
+                .collect::<Vec<_>>(),
+            vec![1, 2, 2, 3, 3, 3]
+        )
     }
 }
