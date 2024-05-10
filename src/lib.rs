@@ -374,9 +374,8 @@ pub mod defer {
             *v += 1;
         }
         {
-            let d;
             add(&mut a);
-            d = Defer::new(|| {
+            let d = Defer::new(|| {
                 add(&mut a);
                 println!("drop d")
             });
@@ -396,9 +395,7 @@ pub mod defer {
         struct F1<F> {
             _f: F,
         }
-        let f = F1 {
-            _f: || println!(""),
-        };
+        let f = F1 { _f: || println!() };
         use std::mem::{size_of, size_of_val};
         assert_eq!(size_of_val(&f), 0);
         assert_eq!(size_of_val(&d1), size_of::<String>());
@@ -1383,16 +1380,20 @@ pub mod disabled {
                 struct Disabled;
                 Disabled
             };
+            #[allow(clippy::drop_non_drop)]
             ::std::mem::drop($name);
         };
     }
+    #[test]
     #[allow(unused)]
     fn _a() {
         let a = 32;
         let a = {
             struct Disabled;
+
             Disabled
         };
+        #[allow(clippy::drop_non_drop)]
         ::std::mem::drop(a);
         let b = 31;
         disable!(b);
@@ -1400,4 +1401,34 @@ pub mod disabled {
     }
 }
 
-pub mod instant_run {}
+pub mod instant_run {
+    #[macro_export]
+    macro_rules! instant_run {
+        () => {
+            ()
+        };
+        ($e:expr) => {
+            (|| {
+                ();
+                $e
+            })()
+        };
+        ($($e:tt)*) => {
+            (|| {
+                ();
+                $($e)*
+            })()
+        };
+        // ($e:q) => {};
+    }
+    #[test]
+    fn _a() {
+        let a = instant_run!({
+            let d = Some(1)?;
+            let _g = None?;
+            dbg!(d);
+            Some(())
+        });
+        dbg!(a);
+    }
+}
