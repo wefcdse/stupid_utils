@@ -1355,11 +1355,13 @@ pub mod wrap_in_whatever {
 pub mod just_provide {
     /// used in `map`, ignore input and just return a fixed value
     ///
-    /// example
+    /// ## Example
     /// ```
     /// use stupid_utils::just_provide::just_provide;
+    ///
     /// let a: Result<(), i32> = Err(42);
     /// let b = a.map_err(just_provide("40 + 2".to_owned()));
+    ///
     /// assert_eq!(b, Err("40 + 2".to_owned()));
     /// ```
     pub fn just_provide<T, P>(value: T) -> impl FnOnce(P) -> T {
