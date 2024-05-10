@@ -47,9 +47,11 @@ pub mod predule {
     pub use crate::arc_mutex_new::arc_mutex_new;
     pub use crate::box_up::BoxUp;
     pub use crate::defer::Defer;
+    pub use crate::disable;
     pub use crate::dot_drop::DotDrop;
     pub use crate::extend_map_iter::{ExtendMap, ExtendMapIter, PushOnlyVec};
     pub use crate::find_in_vec::FindInVec;
+    pub use crate::just_provide::just_provide;
     pub use crate::map_value::MapValue;
     pub use crate::mutable_init::MutableInit;
     pub use crate::mutex_lock_and_unwrap::MutexLockAndUnwrap;
@@ -57,6 +59,7 @@ pub mod predule {
     pub use crate::print_on_drop::{PrintOnDrop, PrintOnDropNoInfo};
     pub use crate::result_to_option::ResultToOption;
     pub use crate::select::{select, DotSelect};
+    pub use crate::wrap_in_whatever::WrapInWhatever;
     // pub use crate::short_unwrap::ShortUnwrap;
     // pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
 }
@@ -1139,9 +1142,9 @@ pub mod one_or_many {
                     Some(v2)
                 }
                 3.. => vec.pop(),
-                _ => {
-                    unreachable!()
-                }
+                // _ => {
+                //     unreachable!()
+                // }
             }
         }
         pub fn take_one(self) -> Result<T, Self> {
@@ -1333,3 +1336,68 @@ pub mod extend_map_iter {
         )
     }
 }
+
+pub mod wrap_in_whatever {
+    pub trait WrapInWhatever: Sized {
+        /// wrap value in `Some`
+        fn some_wrap(self) -> Option<Self> {
+            Some(self)
+        }
+        /// wrap value in `Ok`
+        fn ok_wrap<Err>(self) -> Result<Self, Err> {
+            Ok(self)
+        }
+        /// wrao value in `Err`
+        fn err_wrap<T>(self) -> Result<T, Self> {
+            Err(self)
+        }
+    }
+    impl<T> WrapInWhatever for T {}
+}
+
+pub mod just_provide {
+    /// used in `map`, ignore input and just return a fixed value
+    ///
+    /// example
+    /// ```
+    /// use stupid_utils::just_provide::just_provide;
+    /// let a: Result<(), i32> = Err(42);
+    /// let b = a.map_err(just_provide("40 + 2".to_owned()));
+    /// assert_eq!(b, Err("40 + 2".to_owned()));
+    /// ```
+    pub fn just_provide<T, P>(value: T) -> impl FnOnce(P) -> T {
+        |_| value
+    }
+    // fn a() {
+    //     let a = String::new();
+    //     // let b = || drop(a);
+    // }
+}
+
+pub mod disabled {
+    /// disables a identfier
+    #[macro_export]
+    macro_rules! disable {
+        ($name:ident) => {
+            let $name = {
+                struct Disabled;
+                Disabled
+            };
+            ::std::mem::drop($name);
+        };
+    }
+    #[allow(unused)]
+    fn _a() {
+        let a = 32;
+        let a = {
+            struct Disabled;
+            Disabled
+        };
+        ::std::mem::drop(a);
+        let b = 31;
+        disable!(b);
+        // b;
+    }
+}
+
+pub mod instant_run {}
