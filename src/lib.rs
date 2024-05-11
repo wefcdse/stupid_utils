@@ -49,6 +49,7 @@ pub mod predule {
     pub use crate::defer::Defer;
     pub use crate::disable;
     pub use crate::dot_drop::DotDrop;
+    pub use crate::dot_ref::DotRef;
     pub use crate::extend_map_iter::{ExtendMap, ExtendMapIter, PushOnlyVec};
     pub use crate::find_in_vec::FindInVec;
     pub use crate::just_provide::just_provide;
@@ -1432,5 +1433,27 @@ pub mod instant_run {
             Some(())
         });
         dbg!(a);
+    }
+}
+
+pub mod dot_ref {
+    /// returns `&self` and `&mut self` in methods
+    pub trait DotRef {
+        /// just returns a `&self`
+        fn dot_ref(&self) -> &Self {
+            self
+        }
+        /// just returns a `&mut self`
+        fn dot_mut(&mut self) -> &mut Self {
+            self
+        }
+    }
+    impl<T: ?Sized> DotRef for T {}
+    #[test]
+    fn t() {
+        let a = 32;
+        let _b = a.dot_ref();
+        let mut c = 32;
+        let _d = c.dot_mut();
     }
 }
