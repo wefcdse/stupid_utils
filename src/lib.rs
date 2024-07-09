@@ -52,6 +52,7 @@ pub mod predule {
     pub use crate::dot_ref::DotRef;
     pub use crate::extend_map_iter::{ExtendMap, ExtendMapIter, PushOnlyVec};
     pub use crate::find_in_vec::FindInVec;
+    pub use crate::if_iter_remains::IfIterRemains;
     pub use crate::just_provide::just_provide;
     pub use crate::map_value::MapValue;
     pub use crate::mutable_init::MutableInit;
@@ -564,16 +565,38 @@ pub mod mutable_init {
         fn mutable_init<F>(self, f: F) -> Self
         where
             F: FnOnce(&mut Self);
+
+        /// a method takes an owned value, changes it in a closure, then return what the closure returns;
+        ///
+        /// usahe:
+        /// ```
+        /// use stupid_utils::mutable_init::MutableInit;
+        ///
+        /// let a = [1, 2, 3];
+        /// let a = a.iter();
+        /// let (a1, a2, a3) = a.mutable_cast(|iter| {
+        ///     (iter.next(), iter.next(), iter.next())
+        /// });
+        /// ```
+        fn mutable_cast<F, O>(self, f: F) -> O
+        where
+            F: FnOnce(&mut Self) -> O;
     }
 
     impl<T> MutableInit for T {
-        fn mutable_init<F>(self, f: F) -> Self
+        fn mutable_init<F>(mut self, f: F) -> Self
         where
             F: FnOnce(&mut Self),
         {
-            let mut v = self;
-            f(&mut v);
-            v
+            f(&mut self);
+            self
+        }
+
+        fn mutable_cast<F, O>(mut self, f: F) -> O
+        where
+            F: FnOnce(&mut Self) -> O,
+        {
+            f(&mut self)
         }
     }
 
@@ -1455,5 +1478,86 @@ pub mod dot_ref {
         let _b = a.dot_ref();
         let mut c = 32;
         let _d = c.dot_mut();
+    }
+}
+
+pub mod if_iter_remains {
+    use std::iter::FusedIterator;
+
+    pub trait IfIterRemains: Iterator + Sized {
+        /// wrap the iter into a new iter which can cache one item and thus can tells if there is item left
+        ///
+        /// this will cause `self` to run [Iterator::next] once instantly (but will not lose any item)
+        fn into_testable_iter(self) -> CacheOneIter<Self>;
+        fn into_iter_with_test_info(self) -> IterWithRemainingInfo<Self> {
+            IterWithRemainingInfo(self.into_testable_iter())
+        }
+    }
+    #[test]
+    fn a() {
+        let a = [14, 116, 18];
+        let mut a = a.iter().into_testable_iter();
+        assert!(a.remains());
+        assert_eq!(a.next(), Some(&14));
+        assert!(a.remains());
+        assert_eq!(a.next(), Some(&116));
+        assert!(a.remains());
+        assert_eq!(a.next(), Some(&18));
+        assert!(!a.remains());
+        assert_eq!(a.next(), None);
+
+        let a = ["14".to_owned(), "116".to_owned(), "18".to_owned()];
+        let mut a = a.into_iter().into_testable_iter();
+        assert!(a.remains());
+        assert_eq!(a.next(), Some("14".to_owned()));
+        assert!(a.remains());
+        assert_eq!(a.next(), Some("116".to_owned()));
+        assert!(a.remains());
+        assert_eq!(a.next(), Some("18".to_owned()));
+        assert!(!a.remains());
+        assert_eq!(a.next(), None);
+    }
+    impl<T: Iterator> IfIterRemains for T {
+        fn into_testable_iter(mut self) -> CacheOneIter<Self> {
+            CacheOneIter {
+                next_item: self.next(),
+                iter: self,
+            }
+        }
+    }
+    pub struct CacheOneIter<Iter: Iterator> {
+        next_item: Option<Iter::Item>,
+        iter: Iter,
+    }
+    pub struct IterWithRemainingInfo<Iter: Iterator>(CacheOneIter<Iter>);
+    impl<Iter: Iterator> FusedIterator for IterWithRemainingInfo<Iter> {}
+    impl<Iter: Iterator> Iterator for IterWithRemainingInfo<Iter> {
+        type Item = (Iter::Item, bool);
+
+        fn next(&mut self) -> Option<Self::Item> {
+            let item = self.0.next()?;
+            let remains = self.0.remains();
+            Some((item, remains))
+        }
+    }
+
+    impl<Iter: Iterator> CacheOneIter<Iter> {
+        /// tells if there is any item left
+        pub fn remains(&self) -> bool {
+            self.next_item.is_some()
+        }
+    }
+    impl<Iter: Iterator> FusedIterator for CacheOneIter<Iter> {}
+    impl<Iter: Iterator> Iterator for CacheOneIter<Iter> {
+        type Item = Iter::Item;
+
+        fn next(&mut self) -> Option<Self::Item> {
+            if self.next_item.is_none() {
+                return None;
+            }
+            let next_item = self.next_item.take();
+            self.next_item = self.iter.next();
+            next_item
+        }
     }
 }
