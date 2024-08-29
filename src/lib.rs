@@ -1561,3 +1561,15 @@ pub mod if_iter_remains {
         }
     }
 }
+
+pub mod set_mut {
+    /// provides a method to set a value with `&mut`
+    pub trait SetMut: Sized {
+        /// similar to `*self = value`
+        fn set(&mut self, value: Self) {
+            *self = value;
+        }
+    }
+
+    impl<T> SetMut for T {}
+}
