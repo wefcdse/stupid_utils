@@ -61,6 +61,7 @@ pub mod predule {
     pub use crate::print_on_drop::{PrintOnDrop, PrintOnDropNoInfo};
     pub use crate::result_to_option::ResultToOption;
     pub use crate::select::{select, DotSelect};
+    pub use crate::set_mut::SetMut;
     pub use crate::wrap_in_whatever::WrapInWhatever;
     // pub use crate::short_unwrap::ShortUnwrap;
     // pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
@@ -1451,7 +1452,7 @@ pub mod instant_run {
     fn _a() {
         let a = instant_run!({
             let d = Some(1)?;
-            let _g = None?;
+            None?;
             dbg!(d);
             Some(())
         });
@@ -1552,9 +1553,7 @@ pub mod if_iter_remains {
         type Item = Iter::Item;
 
         fn next(&mut self) -> Option<Self::Item> {
-            if self.next_item.is_none() {
-                return None;
-            }
+            self.next_item.as_ref()?;
             let next_item = self.next_item.take();
             self.next_item = self.iter.next();
             next_item
