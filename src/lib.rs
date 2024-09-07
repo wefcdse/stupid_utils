@@ -445,18 +445,20 @@ pub mod find_in_vec {
     /// assert_eq!(v.find(&45), Some(2));
     /// assert_eq!(v.find(&128), None);
     ///
+    /// let v1: Vec<String> = vec!["1".to_owned()];
+    /// assert_eq!(v1.find("1"), Some(0));
     /// ```
-    pub trait FindInVec<T> {
+    pub trait FindInVec<T: ?Sized> {
         /// a `find` method for `Vec` returning the first matched index
         ///
         /// see also [`FindInVec`]
         fn find(&self, value: &T) -> Option<usize>;
     }
 
-    impl<T: Eq> FindInVec<T> for Vec<T> {
-        fn find(&self, value: &T) -> Option<usize> {
+    impl<T0, T1: PartialEq<T0> + ?Sized> FindInVec<T1> for Vec<T0> {
+        fn find(&self, value: &T1) -> Option<usize> {
             for (i, v) in self.iter().enumerate() {
-                if v == value {
+                if value == v {
                     return Some(i);
                 }
             }
@@ -466,8 +468,11 @@ pub mod find_in_vec {
 
     #[test]
     fn t() {
-        let a = vec!["1".to_owned()];
-        a.find(&"aaa".to_owned());
+        let a: Vec<String> = vec!["1".to_owned()];
+        a.find("aaa");
+        let a: std::collections::HashMap<String, String> = std::collections::HashMap::new();
+
+        a.get("k");
     }
 }
 
@@ -1505,6 +1510,11 @@ pub mod if_iter_remains {
         ///
         /// this will cause `self` to run [Iterator::next] once instantly (but will not lose any item)
         fn into_testable_iter(self) -> CacheOneIter<Self>;
+        /// wrap the iter into a new iter which can cache one item and thus can tells if there is item left
+        ///
+        /// the item of the new iter is ([item], [if remains])
+        ///
+        /// this will cause `self` to run [Iterator::next] once instantly (but will not lose any item)
         fn into_iter_with_test_info(self) -> IterWithRemainingInfo<Self> {
             IterWithRemainingInfo(self.into_testable_iter())
         }
