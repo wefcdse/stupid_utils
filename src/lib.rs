@@ -63,6 +63,7 @@ pub mod predule {
     pub use crate::mutex_lock_and_unwrap::MutexLockAndUnwrap;
     pub use crate::option_to_result::{OptionToResult, OptionUnwrapOnNoneError};
     pub use crate::print_on_drop::{PrintOnDrop, PrintOnDropNoInfo};
+    pub use crate::provide::Provide;
     pub use crate::result_to_option::ResultToOption;
     pub use crate::select::{select, DotSelect};
     pub use crate::set_mut::SetMut;
@@ -213,6 +214,7 @@ pub mod arc_mutex {
 }
 
 pub mod select {
+    use crate::predule::Provide;
 
     /// same as `cond? a : b` operator in c/cpp
     /// # Example
@@ -223,11 +225,15 @@ pub mod select {
     /// assert_eq!(select(false, 2, 3), 3);
     /// ```
     #[inline(always)]
-    pub fn select<T>(condition: bool, true_value: T, false_value: T) -> T {
+    pub fn select<T, M1, M2>(
+        condition: bool,
+        true_value: impl Provide<T, M1>,
+        false_value: impl Provide<T, M2>,
+    ) -> T {
         if condition {
-            true_value
+            true_value.provide()
         } else {
-            false_value
+            false_value.provide()
         }
     }
 
@@ -238,20 +244,36 @@ pub mod select {
     ///
     /// assert_eq!(true.select(2, 3), 2);
     /// assert_eq!(false.select(2, 3), 3);
+    ///
+    /// // can use closures
+    /// assert_eq!(true.select(|| 2, 3), 2);
+    /// assert_eq!(false.select(2, || 3), 3);
+    ///
+    /// // if both are closure, type infer fails
+    /// use stupid_utils::provide::Func;
+    /// assert_eq!(false.select::<Func, Func>(|| 2, || 3), 3);
     /// ```
     pub trait DotSelect<T> {
         /// same as `cond? a : b` operator in c/cpp, but as a method of `bool`
         ///
         /// see also [`DotSelect`][`crate::select::DotSelect`]
-        fn select(&self, true_value: T, false_value: T) -> T;
+        fn select<M1, M2>(
+            &self,
+            true_value: impl Provide<T, M1>,
+            false_value: impl Provide<T, M2>,
+        ) -> T;
     }
     impl<T> DotSelect<T> for bool {
         #[inline(always)]
-        fn select(&self, true_value: T, false_value: T) -> T {
+        fn select<M1, M2>(
+            &self,
+            true_value: impl Provide<T, M1>,
+            false_value: impl Provide<T, M2>,
+        ) -> T {
             if *self {
-                true_value
+                true_value.provide()
             } else {
-                false_value
+                false_value.provide()
             }
         }
     }
@@ -1398,6 +1420,8 @@ pub mod wrap_in_whatever {
 }
 
 pub mod just_provide {
+    use crate::predule::Provide;
+
     /// used in `map`, ignore input and just return a fixed value
     ///
     /// ## Example
@@ -1408,9 +1432,15 @@ pub mod just_provide {
     /// let b = a.map_err(just_provide("40 + 2".to_owned()));
     ///
     /// assert_eq!(b, Err("40 + 2".to_owned()));
+    ///
+    /// let a: Result<(), i32> = Err(42);
+    /// let b = a.map_err(just_provide(|| "40 + 2".to_owned()));
+    ///
+    /// assert_eq!(b, Err("40 + 2".to_owned()));
+    ///
     /// ```
-    pub fn just_provide<T, P>(value: T) -> impl FnOnce(P) -> T {
-        |_| value
+    pub fn just_provide<T, P, M>(value: impl Provide<T, M>) -> impl FnOnce(P) -> T {
+        |_| value.provide()
     }
     // fn a() {
     //     let a = String::new();
@@ -1587,13 +1617,80 @@ pub mod if_iter_remains {
 }
 
 pub mod set_mut {
+    use crate::predule::Provide;
+
     /// provides a method to set a value with `&mut`
+    /// # Example
+    /// ```
+    /// use stupid_utils::set_mut::SetMut;
+    ///
+    /// let mut a = 10;
+    ///
+    /// a.set(41);
+    /// assert_eq!(a, 41);
+    ///
+    /// a.set(|| 42);
+    /// assert_eq!(a, 42);
+    ///
+    /// ```
     pub trait SetMut: Sized {
-        /// similar to `*self = value`
-        fn set(&mut self, value: Self) {
-            *self = value;
+        /// similar to `*self = value`, and also can receive a closure returning a `Self`
+        ///
+        /// ```
+        /// use stupid_utils::set_mut::SetMut;
+        ///
+        /// let mut a = 10;
+        ///
+        /// a.set(41);
+        /// assert_eq!(a, 41);
+        ///
+        /// a.set(|| 42);
+        /// assert_eq!(a, 42);
+        ///
+        /// ```
+        ///
+        fn set<M>(&mut self, value: impl Provide<Self, M>) {
+            *self = value.provide();
         }
     }
 
     impl<T> SetMut for T {}
+}
+
+pub mod provide {
+    /// mark the provider is the value itself
+    pub struct Value;
+    /// mark the provider is a closure providing the value
+    pub struct Func;
+
+    /// provides a value, the provider can be the value itself or a closure
+    /// ```
+    /// use stupid_utils::provide::Provide;
+    ///
+    /// let a = 42;
+    /// let b = || 42;
+    ///
+    /// fn is_42<M>(v: impl Provide<i32, M>) -> bool{
+    ///     v.provide() == 42
+    /// }
+    ///
+    /// assert!(is_42(a));
+    /// assert!(is_42(b));
+    ///
+    /// ```
+    pub trait Provide<T, Marker> {
+        fn provide(self) -> T;
+    }
+    impl<T> Provide<T, Value> for T {
+        #[inline]
+        fn provide(self) -> T {
+            self
+        }
+    }
+    impl<T, F: FnOnce() -> T> Provide<T, Func> for F {
+        #[inline]
+        fn provide(self) -> T {
+            self()
+        }
+    }
 }

@@ -1,6 +1,6 @@
 [package]
 name = "stupid_utils"
-version = "0.2.11"
+version = "0.3.0"
 edition = "2021"
 authors = ["wefcdse"]
 description = "A crate that provides some simple and maybe stupid or useful tools"
