@@ -52,6 +52,8 @@ pub mod predule {
     pub use crate::dot_ref::DotRef;
     pub use crate::extend_map_iter::{ExtendMap, ExtendMapIter, PushOnlyVec};
     pub use crate::find_in_vec::FindInVec;
+    #[cfg(feature = "functional_trait")]
+    pub use crate::functional_trait::functional_trait;
     pub use crate::if_iter_remains::IfIterRemains;
     pub use crate::just_provide::just_provide;
     pub use crate::map_value::MapValue;
@@ -66,6 +68,16 @@ pub mod predule {
     // pub use crate::short_unwrap::ShortUnwrap;
     // pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
 }
+#[cfg(feature = "functional_trait")]
+pub mod functional_trait {
+    pub use functional_trait::functional_trait;
+
+    #[crate::functional_trait::functional_trait]
+    trait _A {
+        fn a(&self);
+    }
+}
+
 pub mod short_unwrap {
 
     /// a shorter unwrap
