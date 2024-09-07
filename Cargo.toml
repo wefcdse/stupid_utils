@@ -15,7 +15,7 @@ functional_trait = { version = "1.0.1", optional = true }
 # functional_trait = { path = "../functional_trait", optional = true }
 
 [features]
-default = ["dependent"]
+# default = ["dependent"]
 dependent = ["functional_trait"]
-
+doc = ["functional_trait"]
 functional_trait = ["dep:functional_trait"]

@@ -52,7 +52,7 @@ pub mod predule {
     pub use crate::dot_ref::DotRef;
     pub use crate::extend_map_iter::{ExtendMap, ExtendMapIter, PushOnlyVec};
     pub use crate::find_in_vec::FindInVec;
-    #[cfg(feature = "functional_trait")]
+    #[cfg(any(feature = "functional_trait", doc))]
     pub use crate::functional_trait::functional_trait;
     pub use crate::if_iter_remains::IfIterRemains;
     pub use crate::just_provide::just_provide;
@@ -68,7 +68,8 @@ pub mod predule {
     // pub use crate::short_unwrap::ShortUnwrap;
     // pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
 }
-#[cfg(feature = "functional_trait")]
+#[cfg(any(feature = "functional_trait", doc))]
+// #[cfg_attr(docsrs, doc(cfg(feature = "functional_trait")))]
 pub mod functional_trait {
     pub use functional_trait::functional_trait;
 
@@ -90,7 +91,7 @@ pub mod short_unwrap {
     /// assert_eq!(a.unwrap(), b.u());
     /// ```
     pub trait ShortUnwrap<T> {
-        /// equals to [`unwrap`]
+        /// equals to `unwrap`
         ///
         /// see also [`ShortUnwrap`][`crate::short_unwrap::ShortUnwrap`]
         fn u(self) -> T;
