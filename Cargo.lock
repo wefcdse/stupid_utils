@@ -4,9 +4,9 @@ version = 3
 
 [[package]]
 name = "functional_trait"
-version = "1.0.1"
+version = "1.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0be37a9b80023b861009f92114ed303d5c89dfa41e679b3f0bbd1f6bd7281765"
+checksum = "6ad1f68916b0e03fba465ba7863e9c2de14cdd8ac4d37874761cdef84486abb4"
 dependencies = [
  "proc-macro2",
  "quote",
@@ -33,7 +33,7 @@ dependencies = [
 
 [[package]]
 name = "stupid_utils"
-version = "0.3.0"
+version = "0.4.0"
 dependencies = [
  "functional_trait",
 ]

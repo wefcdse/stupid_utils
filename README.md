@@ -2,11 +2,15 @@
 
 A crate that provides some simple and maybe stupid or useful tools
 
+Most of the features are zero-cost, all non-zero-cost feature can be disabled by `disable_non_zerocost` feature flag.
+
+All dependencies and build script are optional, so the code can be simply copy and paste to another project to use.
+
 ## Example
 
 ```rust
     use std::collections::HashMap;
-    use stupid_utils::predule::*;
+    use stupid_utils::prelude::*;
 
     let a = HashMap::new().mutable_init(|m| {
         m.insert(1, 4.box_up());

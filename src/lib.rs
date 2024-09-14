@@ -4,7 +4,7 @@
 //! # Example
 //! ```
 //! use std::collections::HashMap;
-//! use stupid_utils::predule::*;
+//! use stupid_utils::prelude::*;
 //!
 //! let a = HashMap::new().mutable_init(|m| {
 //!     m.insert(1, 4.box_up());
@@ -43,19 +43,26 @@
 //! ```
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub mod predule {
+pub mod prelude {
     pub use crate::arc_mutex::ArcMutex;
     pub use crate::arc_mutex_new::arc_mutex_new;
     pub use crate::box_up::BoxUp;
+    pub use crate::currying::curry;
+    #[cfg(not(feature = "disable_non_zerocost"))]
+    #[cfg_attr(docsrs, doc(cfg(not(feature = "disable_non_zerocost"))))]
     pub use crate::defer::Defer;
-    pub use crate::disable;
+    pub use crate::disabled::disable;
     pub use crate::dot_drop::DotDrop;
     pub use crate::dot_ref::DotRef;
+    #[cfg(not(feature = "disable_non_zerocost"))]
+    #[cfg_attr(docsrs, doc(cfg(not(feature = "disable_non_zerocost"))))]
     pub use crate::extend_map_iter::{ExtendMap, ExtendMapIter, PushOnlyVec};
     pub use crate::find_in_vec::FindInVec;
     #[cfg(feature = "functional_trait")]
     #[cfg_attr(docsrs, doc(cfg(feature = "functional_trait")))]
     pub use crate::functional_trait::functional_trait;
+    #[cfg(not(feature = "disable_non_zerocost"))]
+    #[cfg_attr(docsrs, doc(cfg(not(feature = "disable_non_zerocost"))))]
     pub use crate::if_iter_remains::IfIterRemains;
     pub use crate::just_provide::just_provide;
     pub use crate::map_value::MapValue;
@@ -64,10 +71,18 @@ pub mod predule {
     pub use crate::option_to_result::{OptionToResult, OptionUnwrapOnNoneError};
     pub use crate::print_on_drop::{PrintOnDrop, PrintOnDropNoInfo};
     pub use crate::provide::Provide;
+    pub use crate::rebind::{mutable, nonmutable};
     pub use crate::result_to_option::ResultToOption;
     pub use crate::select::{select, DotSelect};
     pub use crate::set_mut::SetMut;
+    #[cfg(feature = "tuple_index")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "tuple_index")))]
+    pub use crate::tuple_index::tuple_index_types;
     pub use crate::wrap_in_whatever::WrapInWhatever;
+
+    #[cfg(feature = "fn_apply")]
+    #[cfg_attr(docsrs, doc(cfg(feature = "fn_apply")))]
+    pub use crate::fn_apply::{ApplyOne, ApplyedFunc};
     // pub use crate::short_unwrap::ShortUnwrap;
     // pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
 }
@@ -157,6 +172,8 @@ pub mod option_to_result {
 
     #[test]
     fn t() {
+        use std::num::NonZeroI32;
+
         let a: Option<u32> = None;
         let b = a.to_result();
         assert_eq!(b, Err(OptionUnwrapOnNoneError));
@@ -164,6 +181,11 @@ pub mod option_to_result {
         let a: Option<u32> = Some(3);
         let b = a.to_result();
         assert_eq!(b, Ok(3));
+
+        let a: Option<NonZeroI32> = std::num::NonZeroI32::new(3);
+        let b = a.to_result();
+        assert_eq!(b, Ok(NonZeroI32::new(3).unwrap()));
+        assert_eq!(std::mem::size_of_val(&a), std::mem::size_of_val(&b));
     }
 }
 
@@ -214,7 +236,7 @@ pub mod arc_mutex {
 }
 
 pub mod select {
-    use crate::predule::Provide;
+    use crate::prelude::Provide;
 
     /// same as `cond? a : b` operator in c/cpp
     /// # Example
@@ -332,6 +354,8 @@ pub mod result_to_option {
     }
 }
 
+#[cfg(not(feature = "disable_non_zerocost"))]
+#[cfg_attr(docsrs, doc(cfg(not(feature = "disable_non_zerocost"))))]
 pub mod defer {
 
     /// a struct to call a closure when it's dropped
@@ -655,13 +679,13 @@ pub mod mutable_init {
 }
 
 #[allow(unused)]
-mod fake_truple {
+mod fake_tuple {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::thread;
     use std::time::Duration;
     use std::{fmt::Debug, marker::PhantomData};
 
-    use crate::predule::ArcMutex;
+    use crate::prelude::ArcMutex;
 
     struct Tr<T1, T2> {
         v1: T1,
@@ -768,7 +792,7 @@ mod fake_truple {
             .dot_debug();
     }
 
-    use crate::predule::*;
+    use crate::prelude::*;
     use crate::short_unwrap::ShortUnwrap;
     fn dead_lock() {
         let lock1 = arc_mutex_new(1);
@@ -1039,7 +1063,7 @@ pub mod stack_struct {
     }
     #[test]
     fn t() {
-        use crate::predule::*;
+        use crate::prelude::*;
         let s = Stack::from_two_value(1, "2").push(3.);
         let (s, _v1) = s.pop();
         let s = s
@@ -1287,6 +1311,8 @@ pub mod one_or_many {
     }
 }
 
+#[cfg(not(feature = "disable_non_zerocost"))]
+#[cfg_attr(docsrs, doc(cfg(not(feature = "disable_non_zerocost"))))]
 pub mod extend_map_iter {
     /// similer to [Vec], but only provides [`PushOnlyVec::push`][`crate::extend_map_iter::PushOnlyVec`] method  
     #[derive(Debug)]
@@ -1339,7 +1365,7 @@ pub mod extend_map_iter {
         /// `f` takes two args, first is the value produced from the iterator, second is a [PushOnlyVec] where you can push some values into
         /// # Example
         /// ```
-        /// use stupid_utils::predule::*;
+        /// use stupid_utils::prelude::*;
         /// assert_eq!(
         ///     vec![0, 1, 2, 3]
         ///         .into_iter()
@@ -1420,7 +1446,7 @@ pub mod wrap_in_whatever {
 }
 
 pub mod just_provide {
-    use crate::predule::Provide;
+    use crate::prelude::Provide;
 
     /// used in `map`, ignore input and just return a fixed value
     ///
@@ -1449,6 +1475,7 @@ pub mod just_provide {
 }
 
 pub mod disabled {
+    pub use crate::disable;
     /// disables a identfier
     #[macro_export]
     macro_rules! disable {
@@ -1532,6 +1559,8 @@ pub mod dot_ref {
     }
 }
 
+#[cfg(not(feature = "disable_non_zerocost"))]
+#[cfg_attr(docsrs, doc(cfg(not(feature = "disable_non_zerocost"))))]
 pub mod if_iter_remains {
     use std::iter::FusedIterator;
 
@@ -1617,7 +1646,7 @@ pub mod if_iter_remains {
 }
 
 pub mod set_mut {
-    use crate::predule::Provide;
+    use crate::prelude::Provide;
 
     /// provides a method to set a value with `&mut`
     /// # Example
@@ -1692,5 +1721,270 @@ pub mod provide {
         fn provide(self) -> T {
             self()
         }
+    }
+}
+/// rebind a ident to mut or non-mut
+///
+/// # Example
+/// ```
+/// use stupid_utils::rebind::*;
+/// let a = 40;
+/// mutable!(a);
+/// a += 2;
+/// nonmutable!(a);
+/// // a += 2;     // a is not mutable now
+/// assert_eq!(a, 42);
+///
+/// ```
+pub mod rebind {
+    pub use crate::{mutable, nonmutable};
+
+    /// rebind a ident to mut
+    ///
+    /// # Example
+    /// ```
+    /// use stupid_utils::rebind::*;
+    /// let a = 40;
+    /// mutable!(a);
+    /// a += 2;
+    /// nonmutable!(a);
+    /// // a += 2;     // a is not mutable now
+    /// assert_eq!(a, 42);
+    ///
+    /// ```
+    #[macro_export]
+    macro_rules! mutable {
+        ($name:ident) => {
+            let mut $name = $name;
+        };
+    }
+    /// rebind a ident to non-mut
+    ///
+    /// # Example
+    /// ```
+    /// use stupid_utils::rebind::*;
+    /// let a = 40;
+    /// mutable!(a);
+    /// a += 2;
+    /// nonmutable!(a);
+    /// // a += 2;     // a is not mutable now
+    /// assert_eq!(a, 42);
+    ///
+    /// ```
+    #[macro_export]
+    macro_rules! nonmutable {
+        ($name:ident) => {
+            let $name = $name;
+        };
+    }
+}
+
+/// index a tuple by specific types
+///
+/// # Example
+/// ```
+/// use stupid_utils::tuple_index::tuple_index_types::*;
+/// let a = (14, "s", 1.2);
+/// assert_eq!(a[I0], 14);
+/// assert_eq!(a[I1], "s");
+/// assert_eq!(a[I2], 1.2);
+///
+/// ```
+#[cfg(feature = "tuple_index")]
+#[cfg_attr(docsrs, doc(cfg(feature = "tuple_index")))]
+pub mod tuple_index {
+
+    mod types {
+        include!(concat!(env!("OUT_DIR"), "/struct_tuple_idx.rs"));
+    }
+
+    /// index a tuple by specific types
+    ///
+    /// # Example
+    /// ```
+    /// use stupid_utils::tuple_index::tuple_index_types::*;
+    /// let a = (14, "s", 1.2);
+    /// assert_eq!(a[I0], 14);
+    /// assert_eq!(a[I1], "s");
+    /// assert_eq!(a[I2], 1.2);
+    ///
+    /// ```
+    pub mod tuple_index_types {
+        pub use super::types::*;
+    }
+    macro_rules! impls_ref {
+        ($idx_name:ident,$out_name:ident,$idx_num:tt,$($extends:ident),*) => {
+            impl<$($extends),*> Index<$idx_name> for ($($extends,)*) {
+                type Output = $out_name;
+
+                fn index(&self, _index: $idx_name) -> &Self::Output {
+                    &self.$idx_num
+                }
+            }
+        };
+    }
+
+    macro_rules! impls_mut {
+        ($idx_name:ident,$out_name:ident,$idx_num:tt,$($extends:ident),*) => {
+            impl<$($extends),*> IndexMut<$idx_name> for ($($extends,)*) {
+                fn index_mut(&mut self, _index: $idx_name) -> &mut Self::Output {
+                    &mut self.$idx_num
+                }
+            }
+        };
+    }
+
+    #[test]
+    fn testi() {
+        use self::types::*;
+        let a = (14, "s", 1.2);
+        assert_eq!(a[I0], 14);
+        assert_eq!(a[I1], "s");
+        assert_eq!(a[I2], 1.2);
+    }
+    mod impls {
+        use super::types::*;
+        use std::ops::{Index, IndexMut};
+        include!(concat!(env!("OUT_DIR"), "/impl_tuple_idx.rs"));
+    }
+}
+
+/// curry a function/closure
+///
+/// # Example
+/// ```
+/// use stupid_utils::currying::curry;
+/// let f = |a, b, c| a + b + c;
+/// let fc = curry!(f, a, b, c);
+/// let fca = fc(14);
+/// let fcb = fca(15);
+/// assert_eq!(fcb(61), 14 + 15 + 61);
+/// assert_eq!(fcb(7), 14 + 15 + 7);
+///
+/// ```
+///
+pub mod currying {
+    pub use crate::curry;
+
+    /// curry a function/closure
+    ///
+    /// # Example
+    /// ```
+    /// use stupid_utils::currying::curry;
+    /// let f = |a, b, c| a + b + c;
+    /// let fc = curry!(f, a, b, c);
+    /// let fca = fc(14);
+    /// let fcb = fca(15);
+    /// assert_eq!(fcb(61), 14 + 15 + 61);
+    /// assert_eq!(fcb(7), 14 + 15 + 7);
+    ///
+    /// ```
+    ///
+    #[macro_export]
+    macro_rules! curry {
+        ($func:ident,$($arg:ident),*) => {
+            {
+                $(move |$arg|)* $func($($arg),*)
+            }
+        };
+
+    }
+
+    #[test]
+    fn test_curry() {
+        let f = |a, b, c| a + b + c;
+        let fc = curry!(f, a, b, c);
+        let fca = fc(14);
+        let fcb = fca(15);
+        assert_eq!(fcb(61), 14 + 15 + 61);
+        assert_eq!(fcb(5), 14 + 15 + 5);
+    }
+}
+
+/// call a function by `.apply(arg)`
+///
+/// # Example
+/// ```
+/// use stupid_utils::fn_apply::*;
+/// let f = |a, b, c| a + b + c;
+/// let fa = f.apply(2);
+/// let fb = fa.apply(4);
+/// assert_eq!(fb.apply(32), 2 + 4 + 32);
+/// assert_eq!(fb.apply(14), 2 + 4 + 14);
+///
+///
+/// ```
+///
+#[cfg(feature = "fn_apply")]
+#[cfg_attr(docsrs, doc(cfg(feature = "fn_apply")))]
+pub mod fn_apply {
+    use std::marker::PhantomData;
+    #[test]
+    fn test_fa() {
+        let f = |a, b, c| a + b + c;
+        let fa = f.apply(2);
+        let fb = fa.apply(4);
+        assert_eq!(fb.apply(32), 2 + 4 + 32);
+        assert_eq!(fb.apply(9), 2 + 4 + 9);
+    }
+
+    #[derive(Debug, Clone, Copy)]
+    pub struct ApplyedFunc<F, ApplyedArgs, Args, Out> {
+        pub func: F,
+        pub args: ApplyedArgs,
+        _p: PhantomData<(Args, Out)>,
+    }
+    pub trait ApplyOne<Arg0, Args, Out>: Sized {
+        /// apply first arg
+        fn apply(self, arg: Arg0) -> ApplyedFunc<Self, (Arg0,), Args, Out>;
+    }
+    macro_rules! impl_applyone {
+        ($arg0:ident, $($arg:ident),*) => {
+            impl<$arg0, $($arg),* , O, F> ApplyOne<T0, ($arg0, $($arg),*), O> for F
+            where
+                F: FnOnce($arg0, $($arg),*) -> O,
+            {
+                fn apply(self, arg0: T0) -> ApplyedFunc<Self, ($arg0,), ($arg0, $($arg),*), O> {
+                    ApplyedFunc {
+                        func: self,
+                        args: (arg0,),
+                        _p: PhantomData,
+                    }
+                }
+            }
+        };
+    }
+
+    macro_rules! impl_extend {
+        ($($applied:ident),*, [$next:ident], $($other:ident),*) => {
+            impl<$($applied),*,$next,$($other),*, O, F: FnOnce($($applied),*, $next, $($other),*) -> O> ApplyedFunc<F, ($($applied),*,), ($($applied),*,$next,$($other),*), O> {
+                #[allow(non_snake_case)]
+                /// apply next arg
+                pub fn apply(self, value: $next) -> ApplyedFunc<F, ($($applied),*, $next), ($($applied),*,$next,$($other),*), O> {
+                    let ($( $applied,)*) = self.args;
+                    ApplyedFunc {
+                        func: self.func,
+                        args: ($($applied,)* value),
+                        _p: PhantomData,
+                    }
+                }
+            }
+        };
+
+        ($($applied:ident,)* [$end:ident]) => {
+            impl<$($applied),*, $end, O, F: FnOnce($($applied),*, $end) -> O> ApplyedFunc<F, ($($applied,)*), ($($applied),*, $end), O> {
+                #[allow(non_snake_case)]
+                /// apply last arg
+                pub fn apply(self, value: $end) -> O {
+                    let ($( $applied,)*) = self.args;
+                    (self.func)($($applied),*, value)
+                }
+            }
+        };
+    }
+
+    mod impls {
+        use super::*;
+        include!(concat!(env!("OUT_DIR"), "/impl_fn_apply.rs"));
     }
 }
