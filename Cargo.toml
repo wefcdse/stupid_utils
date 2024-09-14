@@ -1,6 +1,6 @@
 [package]
 name = "stupid_utils"
-version = "0.4.0"
+version = "0.4.1"
 edition = "2021"
 authors = ["wefcdse"]
 description = "A crate that provides some simple and maybe stupid or useful tools"
@@ -27,7 +27,9 @@ tuple_index = []
 
 # docs.rs-specific configuration
 [package.metadata.docs.rs]
+features = ["dependent", "build_script"]
 # document all features
-all-features = true
+all-features = false
+no-default-features = false
 # defines the configuration attribute `docsrs`
 rustdoc-args = ["--cfg", "docsrs"]
