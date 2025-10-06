@@ -83,6 +83,8 @@ pub mod prelude {
     #[cfg(feature = "fn_apply")]
     #[cfg_attr(docsrs, doc(cfg(feature = "fn_apply")))]
     pub use crate::fn_apply::{ApplyOne, ApplyedFunc};
+
+    pub use crate::as_convert_trait::AsConvert;
     // pub use crate::short_unwrap::ShortUnwrap;
     // pub use crate::stack_struct::{PopFirst, PushFirst, Stack, Value};
 }
