@@ -678,7 +678,7 @@ pub mod mutable_init {
     }
 }
 
-#[allow(unused)]
+#[allow(unused, non_local_definitions)]
 mod fake_tuple {
     use std::sync::atomic::{AtomicU64, Ordering};
     use std::thread;
@@ -1487,6 +1487,17 @@ pub mod disabled {
             #[allow(clippy::drop_non_drop)]
             ::std::mem::drop($name);
         };
+        ($($name:ident),*) => {
+            $(
+                let _ = & $name;
+                let $name = {
+                    struct Disabled;
+                    Disabled
+                };
+                #[allow(clippy::drop_non_drop)]
+                ::std::mem::drop($name);
+            )*
+        };
     }
     #[test]
     #[allow(unused)]
@@ -1757,6 +1768,11 @@ pub mod rebind {
         ($name:ident) => {
             let mut $name = $name;
         };
+        ($($name:ident),*) => {
+            $(
+                let mut $name = $name;
+            )*
+        };
     }
     /// rebind a ident to non-mut
     ///
@@ -1775,6 +1791,11 @@ pub mod rebind {
     macro_rules! nonmutable {
         ($name:ident) => {
             let $name = $name;
+        };
+        ($($name:ident),*) => {
+            $(
+                let $name = $name;
+            )*
         };
     }
 }
@@ -1987,4 +2008,49 @@ pub mod fn_apply {
         use super::*;
         include!(concat!(env!("OUT_DIR"), "/impl_fn_apply.rs"));
     }
+}
+
+pub mod as_convert_trait {
+    macro_rules! impl_cvt {
+        ($macro:ident, $trait_name:ident,($($t:ident),*)) => {
+            /// convert to other type use `as`
+            /// # Example
+            /// ```
+            /// use stupid_utils::as_convert_trait::AsConvert;
+            /// let num_i32: i32 = 40i16.i32();
+            /// let num_f64: f64 = 2.0f32.f64();
+            /// let sum_u128: u128 = num_i32.u128() + num_f64.u128();
+            /// assert_eq!(sum_u128.usize(), 42i8.usize());
+            ///
+            ///
+            /// ```
+            ///
+            pub trait $trait_name{
+                $(
+                    // #[doc = $t]
+                    fn $t(self) -> $t;
+                )*
+            }
+            macro_rules! $macro {
+                ($name:ident) => {
+                    impl $trait_name for $name{
+                        $(
+                            fn $t(self) -> $t{
+                                self as $t
+                            }
+                        )*
+                    }
+
+                };
+            }
+            $(
+            $macro!($t);
+            )*
+        };
+    }
+    impl_cvt!(
+        masda,
+        AsConvert,
+        (i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64)
+    );
 }
