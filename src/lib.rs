@@ -2014,7 +2014,7 @@ pub mod fn_apply {
 
 pub mod as_convert_trait {
     macro_rules! impl_cvt {
-        ($macro:ident, $trait_name:ident,($($t:ident),*)) => {
+        ($macro:ident, $trait_name:ident,($($t:ident),*),($($target:ident),*)) => {
             /// convert to other type use `as`
             /// # Example
             /// ```
@@ -2030,15 +2030,15 @@ pub mod as_convert_trait {
             pub trait $trait_name{
                 $(
                     // #[doc = $t]
-                    fn $t(self) -> $t;
+                    fn $target(self) -> $target;
                 )*
             }
             macro_rules! $macro {
                 ($name:ident) => {
                     impl $trait_name for $name{
                         $(
-                            fn $t(self) -> $t{
-                                self as $t
+                            fn $target(self) -> $target{
+                                self as $target
                             }
                         )*
                     }
@@ -2046,13 +2046,43 @@ pub mod as_convert_trait {
                 };
             }
             $(
-            $macro!($t);
+                $macro!($t);
             )*
         };
     }
+    use std::ffi::*;
     impl_cvt!(
         masda,
         AsConvert,
-        (i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64)
+        (i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64),
+        (
+            i8,
+            u8,
+            i16,
+            u16,
+            i32,
+            u32,
+            i64,
+            u64,
+            i128,
+            u128,
+            isize,
+            usize,
+            f32,
+            f64,
+            c_char,
+            c_schar,
+            c_uchar,
+            c_short,
+            c_ushort,
+            c_int,
+            c_uint,
+            c_long,
+            c_ulong,
+            c_longlong,
+            c_ulonglong,
+            c_double,
+            c_float
+        )
     );
 }
