@@ -72,7 +72,6 @@ pub mod prelude {
     pub use crate::print_on_drop::{PrintOnDrop, PrintOnDropNoInfo};
     pub use crate::provide::Provide;
     pub use crate::rebind::{mutable, nonmutable};
-    pub use crate::result_to_option::ResultToOption;
     pub use crate::select::{select, DotSelect};
     pub use crate::set_mut::SetMut;
     #[cfg(feature = "tuple_index")]
@@ -326,36 +325,6 @@ pub mod dot_drop {
     impl<T> DotDrop for T {}
 }
 
-pub mod result_to_option {
-
-    /// convert a `Result` to an `Option`
-    /// # Example
-    /// ```
-    /// use stupid_utils::result_to_option::ResultToOption;
-    ///
-    /// let a: Result<i32, ()> = Ok(32);
-    /// let b: Result<(), i32> = Err(32);
-    ///
-    /// assert_eq!(a.to_option(), Some(32));
-    /// assert_eq!(b.to_option(), None);
-    ///
-    /// ```
-    pub trait ResultToOption<T> {
-        /// convert a `Result` to an `Option`
-        ///
-        /// see also [`ResultToOption`]
-        fn to_option(self) -> Option<T>;
-    }
-    impl<T, E> ResultToOption<T> for Result<T, E> {
-        fn to_option(self) -> Option<T> {
-            match self {
-                Ok(v) => Some(v),
-                Err(_) => None,
-            }
-        }
-    }
-}
-
 #[cfg(not(feature = "disable_non_zerocost"))]
 #[cfg_attr(docsrs, doc(cfg(not(feature = "disable_non_zerocost"))))]
 pub mod defer {
@@ -534,7 +503,6 @@ pub mod map_value {
     /// assert_eq!(a, "number is 35");
     ///
     /// ```
-
     pub trait MapValue<F, U>: Sized
     where
         F: FnOnce(Self) -> U,
