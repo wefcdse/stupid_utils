@@ -1954,9 +1954,21 @@ pub mod fn_apply {
     }
 }
 
+/// convert to other type use `as`
+/// # Example
+/// ```
+/// use stupid_utils::as_convert_trait::AsConvert;
+///
+/// let num_i32: i32 = 40i16.i32();
+/// let num_f64: f64 = 2.0f32.f64();
+/// let sum_u128: u128 = num_i32.u128() + num_f64.u128();
+///
+/// assert_eq!(sum_u128.usize(), 42i8.usize());
+/// ```
+///
 pub mod as_convert_trait {
     macro_rules! impl_cvt {
-        ($macro:ident, $trait_name:ident,($($t:ident),*),($($target:ident),*)) => {
+        ( $trait_name:ident,($($t:ident),*),($(($tname:ident,$via:ident)),*),($($target:ident),*)) => {
             /// convert to other type use `as`
             /// # Example
             /// ```
@@ -1972,14 +1984,14 @@ pub mod as_convert_trait {
             ///
             pub trait $trait_name{
                 $(
-                    // #[doc = $t]
                     fn $target(self) -> $target;
                 )*
             }
-            macro_rules! $macro {
+            macro_rules! impl_num {
                 ($name:ident) => {
                     impl $trait_name for $name{
                         $(
+                            #[inline]
                             fn $target(self) -> $target{
                                 self as $target
                             }
@@ -1988,16 +2000,54 @@ pub mod as_convert_trait {
 
                 };
             }
+            macro_rules! impl_via {
+                ($name:ident,$viatype:ident) => {
+                    impl $trait_name for $name{
+                        $(
+                            #[inline]
+                            fn $target(self) -> $target{
+                                self as $viatype as $target
+                            }
+                        )*
+                    }
+
+                };
+            }
+            macro_rules! impl_ptr {
+                () => {
+                    impl<T> $trait_name for &T{
+                        $(
+                            #[inline]
+                            fn $target(self) -> $target{
+                                self as *const T as usize as $target
+                            }
+                        )*
+                    }
+                    impl<T> $trait_name for *const T{
+                        $(
+                            #[inline]
+                            fn $target(self) -> $target{
+                                self as *const T as usize as $target
+                            }
+                        )*
+                    }
+
+                };
+            }
+            impl_ptr!();
             $(
-                $macro!($t);
+                impl_num!($t);
+            )*
+            $(
+                impl_via!($tname,$via);
             )*
         };
     }
     use std::ffi::*;
     impl_cvt!(
-        masda,
         AsConvert,
         (i8, u8, i16, u16, i32, u32, i64, u64, i128, u128, isize, usize, f32, f64),
+        ((bool, u8), (char, u32)),
         (
             i8,
             u8,
@@ -2028,4 +2078,19 @@ pub mod as_convert_trait {
             c_float
         )
     );
+
+    #[test]
+    fn main() {
+        assert!(false.f64() == 0.0);
+        assert!(true.f32() == 1.0);
+        let a = &2;
+        a.usize();
+        let b = &mut 2;
+        b.usize();
+        let mut c = 2;
+        let c = &raw mut c;
+        c.c_int();
+        assert!('啊'.u128() == 21834);
+        assert!(true.f64().usize() + '啊'.f64().usize() == 21835.0.usize())
+    }
 }
