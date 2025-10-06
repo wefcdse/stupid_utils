@@ -71,7 +71,7 @@ pub mod prelude {
     pub use crate::option_to_result::{OptionToResult, OptionUnwrapOnNoneError};
     pub use crate::print_on_drop::{PrintOnDrop, PrintOnDropNoInfo};
     pub use crate::provide::Provide;
-    pub use crate::rebind::{mutable, nonmutable};
+    pub use crate::rebind::{immutable, mutable};
     pub use crate::select::{select, DotSelect};
     pub use crate::set_mut::SetMut;
     #[cfg(feature = "tuple_index")]
@@ -552,28 +552,6 @@ pub mod box_up {
     }
 }
 
-pub mod dot_debug {
-    use std::fmt::Debug;
-    /// a debug method
-    /// a little stupid (because this will print "Self=", and will show a wrong line)
-    pub trait DotDebug {
-        fn dot_debug(self) -> Self;
-        fn dot_debug_with_info(self, info: &str) -> Self;
-    }
-    impl<T: Debug> DotDebug for T {
-        #[inline(always)]
-        fn dot_debug(self) -> Self {
-            dbg!(self)
-        }
-
-        #[inline(always)]
-        fn dot_debug_with_info(self, info: &str) -> Self {
-            println!("{} {:#?}", info, self);
-            self
-        }
-    }
-}
-
 pub mod mutable_init {
 
     /// a method takes an owned value, changes it in a closure, then return it;
@@ -714,7 +692,6 @@ mod fake_tuple {
     #[test]
     fn t() {
         use crate::box_up::BoxUp;
-        use crate::dot_debug::DotDebug;
         use crate::map_value::MapValue;
 
         let a = Tr::new(1, 2)
@@ -758,8 +735,7 @@ mod fake_tuple {
             .map_value(|(tr, v)| {
                 dbg!(v);
                 tr
-            })
-            .dot_debug();
+            });
     }
 
     use crate::prelude::*;
@@ -962,14 +938,13 @@ pub mod stack_struct {
         }
         #[test]
         fn t() {
-            use crate::dot_debug::DotDebug;
             let mut s = Stack::from_two_value(1, "2").push(3.).push("4".to_owned());
             let _f = s.first();
             let _l = s.last();
             let _f = s.first_mut();
             let _l = s.last_mut();
 
-            s.depth().dot_debug_with_info("depth is");
+            s.depth();
             let (s, v1) = s.pop_first();
             let (s, v2) = s.pop_first();
             let (s, v3) = s.pop_first();
@@ -1009,15 +984,14 @@ pub mod stack_struct {
 
         #[test]
         fn t() {
-            use crate::{dot_debug::DotDebug, stack_struct::pop_first::PopFirst};
+            use crate::stack_struct::pop_first::PopFirst;
             use std::mem::size_of_val;
             let t: (f64, String, &str, i32) = (1., "2".to_owned(), "3", 4);
 
             let s = Value::from(4)
                 .push_first("3")
                 .push_first("2".to_owned())
-                .push_first(1.)
-                .dot_debug();
+                .push_first(1.);
 
             assert_eq!(size_of_val(&t), size_of_val(&s));
 
@@ -1712,13 +1686,13 @@ pub mod provide {
 /// let a = 40;
 /// mutable!(a);
 /// a += 2;
-/// nonmutable!(a);
+/// immutable!(a);
 /// // a += 2;     // a is not mutable now
 /// assert_eq!(a, 42);
 ///
 /// ```
 pub mod rebind {
-    pub use crate::{mutable, nonmutable};
+    pub use crate::{immutable, mutable};
 
     /// rebind a ident to mut
     ///
@@ -1728,7 +1702,7 @@ pub mod rebind {
     /// let a = 40;
     /// mutable!(a);
     /// a += 2;
-    /// nonmutable!(a);
+    /// immutable!(a);
     /// // a += 2;     // a is not mutable now
     /// assert_eq!(a, 42);
     ///
@@ -1752,13 +1726,13 @@ pub mod rebind {
     /// let a = 40;
     /// mutable!(a);
     /// a += 2;
-    /// nonmutable!(a);
+    /// immutable!(a);
     /// // a += 2;     // a is not mutable now
     /// assert_eq!(a, 42);
     ///
     /// ```
     #[macro_export]
-    macro_rules! nonmutable {
+    macro_rules! immutable {
         ($name:ident) => {
             let $name = $name;
         };
@@ -1987,11 +1961,12 @@ pub mod as_convert_trait {
             /// # Example
             /// ```
             /// use stupid_utils::as_convert_trait::AsConvert;
+            ///
             /// let num_i32: i32 = 40i16.i32();
             /// let num_f64: f64 = 2.0f32.f64();
             /// let sum_u128: u128 = num_i32.u128() + num_f64.u128();
-            /// assert_eq!(sum_u128.usize(), 42i8.usize());
             ///
+            /// assert_eq!(sum_u128.usize(), 42i8.usize());
             ///
             /// ```
             ///
